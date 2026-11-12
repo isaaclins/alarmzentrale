@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alarmzentrale</title>
+<style>
+  :root{
+    --navy:#001155; --blue:#0445C8; --sky:#1781e3; --turq:#0eaba9;
+    --red:#dd1122; --pink:#e61e64; --gray:#dde3e7; --ink:#333;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--navy);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--navy)}
+  #game{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:18px;
+    background:radial-gradient(1200px 700px at 50% 0%,#042a8f 0%,var(--navy) 70%)}
+  #game > *{width:min(600px,100%)}
+  #hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;color:#fff}
+  #score{font-size:30px;font-weight:600;line-height:1}
+  #streak{font-size:14px;font-weight:600;color:#9fd8ff;height:18px;margin-top:4px}
+  #rank{background:var(--blue);border-radius:16px;padding:7px 16px;font-size:15px;font-weight:600}
+  #lives{display:flex;gap:6px;justify-content:flex-end}
+  #lives svg{width:30px;height:30px}
+  #lives .lost{opacity:.22}
+
+  #card{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35);border:4px solid #fff;min-height:270px;display:flex;flex-direction:column}
+  #card.good{border-color:var(--turq)} #card.bad{border-color:var(--red)}
+  #bar{height:8px;background:var(--gray)}
+  #barFill{height:100%;width:100%;background:var(--blue);transform-origin:left}
+  #barFill.low{background:var(--red)}
+  #body{padding:26px 30px 28px;display:grid;grid-template-columns:64px 1fr;gap:6px 20px;align-items:start;flex:1}
+  #icon{width:64px;height:64px;border-radius:8px;background:var(--navy);display:flex;align-items:center;justify-content:center;grid-row:span 2}
+  #icon svg{width:36px;height:36px}
+  #kind{font-size:15px;font-weight:600;color:var(--blue);padding-top:2px}
+  #text{font-size:23px;line-height:1.35;color:var(--navy);font-weight:400}
+  #fb{grid-column:1 / -1;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray);display:none}
+  #fb.on{display:block}
+  #fbHead{font-size:20px;font-weight:700;margin:0 0 4px}
+  #card.good #fbHead{color:#0a8a88} #card.bad #fbHead{color:var(--red)}
+  #fbWhy{font-size:18px;line-height:1.4;color:var(--ink)}
+
+  #choices{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .choice{border-radius:6px;padding:14px 16px;font-size:19px;font-weight:600;color:#fff;display:flex;align-items:center;gap:12px;border:2px solid}
+  .choice.safe{border-color:var(--turq);background:rgba(14,171,169,.16)}
+  .choice.attack{border-color:#ff5a6a;background:rgba(221,17,34,.2);justify-content:flex-end}
+  .choice.pick{background:#fff;color:var(--navy)}
+  #next{display:none;text-align:center;border-radius:6px;padding:14px 16px;font-size:19px;font-weight:600;color:#fff;background:var(--blue)}
+  .fbmode #choices{display:none} .fbmode #next{display:block}
+  kbd{display:inline-block;min-width:24px;text-align:center;padding:4px 9px;border:1px solid currentColor;border-bottom-width:3px;
+    border-radius:5px;font:600 15px/1.2 inherit;font-family:inherit}
+
+  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,17,85,.72)}
+  .overlay.on{display:flex}
+  .box{background:#fff;border-radius:8px;padding:32px 36px 28px;width:min(460px,calc(100% - 48px));box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  h1{margin:0 0 6px;font-size:34px;font-weight:300;letter-spacing:-.5px}
+  h1 b{font-weight:700;color:var(--blue)}
+  p{margin:0 0 18px;font-size:17px;line-height:1.45;color:var(--ink)}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center;margin:0 0 24px;font-size:16px;color:var(--ink)}
+  .keys kbd{color:var(--navy)}
+  .go{display:block;background:var(--blue);color:#fff;border-radius:5px;padding:13px 16px;text-align:center;font-size:17px;font-weight:600}
+  .go kbd{margin:0 6px}
+  .big{font-size:56px;font-weight:300;line-height:1;margin:6px 0 4px;color:var(--blue)}
+  .sub{font-size:16px;line-height:1.45;color:var(--ink);margin:0 0 20px}
+  .foot{margin:16px 0 0;font-size:12px;color:#86919a;text-align:center}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="hud">
+    <div><div id="score">0</div><div id="streak"></div></div>
+    <div id="rank">Praktikant</div>
+    <div id="lives"></div>
+  </div>
+  <div id="card">
+    <div id="bar"><div id="barFill"></div></div>
+    <div id="body">
+      <div id="icon"></div>
+      <div id="kind"></div>
+      <div id="text"></div>
+      <div id="fb"><div id="fbHead"></div><div id="fbWhy"></div></div>
+    </div>
+  </div>
+  <div id="choices">
+    <div class="choice safe" id="cSafe"><kbd>←</kbd> Harmlos</div>
+    <div class="choice attack" id="cAttack">Angriff <kbd>→</kbd></div>
+  </div>
+  <div id="next">Weiter mit <kbd>Leertaste</kbd></div>
+</div>
+
+<div class="overlay on" id="menu">
+  <div class="box">
+    <h1>Alarm<b>zentrale</b></h1>
+    <p>Du arbeitest im Sicherheitsteam. Auf deinem Bildschirm tauchen Alarme auf. Entscheide schnell: Ist das harmlos oder ein Angriff?</p>
+    <div class="keys">
+      <span><kbd>←</kbd></span><span>Harmlos, Alarm schliessen</span>
+      <span><kbd>→</kbd></span><span>Angriff, sofort stoppen</span>
+      <span><kbd>P</kbd></span><span>Pause</span>
+    </div>
+    <p>Du hast drei Schutzschilde. Ein Fehler oder zu langes Warten kostet einen. Wer viele hintereinander richtig hat, bekommt mehr Punkte.</p>
+    <div class="go">Drück <kbd>Leertaste</kbd> zum Starten</div>
+    <div class="foot">Gebaut für den Zukunftstag. Alle Alarme sind erfunden.</div>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="box">
+    <h1>Pause</h1>
+    <p>Die Alarme warten kurz auf dich.</p>
+    <div class="go">Weiter mit <kbd>Leertaste</kbd></div>
+  </div>
+</div>
+
+<div class="overlay" id="over">
+  <div class="box">
+    <h1 id="overTitle">Schicht vorbei</h1>
+    <div class="big" id="overScore">0</div>
+    <div class="sub" id="overSub"></div>
+    <div class="go">Nochmal mit <kbd>Leertaste</kbd></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const S = 'fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ICON = {
+    mail:   `<svg viewBox="0 0 24 24" ${S}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>`,
+    login:  `<svg viewBox="0 0 24 24" ${S}><circle cx="8" cy="14" r="4"/><path d="M11 11l8-8M16 6l3 3M14 8l2 2"/></svg>`,
+    laptop: `<svg viewBox="0 0 24 24" ${S}><rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2 19h20"/></svg>`,
+    usb:    `<svg viewBox="0 0 24 24" ${S}><rect x="8" y="9" width="8" height="12" rx="1.5"/><path d="M10 9V3h4v6M11.5 5.5v1M12.5 5.5v1"/></svg>`,
+    net:    `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>`,
+    phone:  `<svg viewBox="0 0 24 24" ${S}><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18h2"/></svg>`,
+  };
+  const SHIELD = `<svg viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.500-2-8-6-8-11V5z" fill="#0eaba9"/><path d="M8.500 12l2.500 2.500 4.500-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  // [icon, title, text, isAttack, why]
+  const ALERTS = [
+    ['mail','Neue E-Mail','«Gratuliere! Du hast ein iPhone gewonnen. Klick schnell auf den Link!»',1,'Ein Gewinn, obwohl du nirgends mitgemacht hast, und dazu Zeitdruck. So sieht Phishing aus.'],
+    ['login','Anmeldung','Lea meldet sich in Zürich an. Zwei Minuten später in Brasilien.',1,'Niemand reist in zwei Minuten nach Brasilien. Jemand hat ihr Passwort gestohlen.'],
+    ['login','Passwort falsch','500 falsche Passwörter in einer Minute beim gleichen Konto.',1,'So schnell tippt kein Mensch. Ein Programm probiert Passwörter durch.'],
+    ['usb','USB-Stick','Jemand steckt einen USB-Stick ein, der auf dem Parkplatz lag.',1,'Gefundene Sticks sind eine bekannte Falle. Darauf kann ein Virus sein.'],
+    ['mail','Neue E-Mail','Von hilfe@meine-bank-sicher.xyz: «Ihr Konto wird gesperrt! Passwort hier eingeben.»',1,'Eine echte Bank fragt nie per E-Mail nach dem Passwort. Und die Adresse ist komisch.'],
+    ['laptop','Laptop','Alle Dateien heissen plötzlich «GESPERRT» und jemand verlangt Geld.',1,'Das ist ein Erpresser-Virus. Laptop sofort vom Netz trennen!'],
+    ['laptop','Programm','Ein Taschenrechner-Programm schickt nachts viele Daten ins Internet.',1,'Ein Taschenrechner braucht kein Internet. Da versteckt sich etwas anderes.'],
+    ['net','Netzwerk','Ein unbekanntes Gerät hängt plötzlich im Büro-Netzwerk.',1,'Fremde Geräte haben im Firmennetz nichts verloren.'],
+    ['mail','Neue E-Mail','Ein Unbekannter schickt den Anhang «Rechnung.pdf.exe».',1,'Die Endung .exe ist ein Programm, keine Rechnung. Das ist ein getarnter Virus.'],
+    ['login','Anmeldung','Der Chef meldet sich um 3 Uhr nachts aus einem Land an, in dem er noch nie war.',1,'Ungewohnte Zeit und ungewohnter Ort zusammen sind sehr verdächtig.'],
+    ['laptop','Virenschutz','Der Virenschutz wird auf zehn Laptops gleichzeitig ausgeschaltet.',1,'Angreifer schalten als Erstes den Schutz aus.'],
+    ['phone','SMS','«Ihr Paket wartet. Zahlen Sie 2 Franken Zoll auf paket-zoll.top»',1,'Falsche Paket-SMS sind sehr häufig. Der Link führt zu Betrügern.'],
+    ['net','Download','Ein Konto lädt in einer Stunde 50 000 Kundendaten herunter.',1,'So viele Daten braucht niemand auf einmal. Das sieht nach Datendiebstahl aus.'],
+    ['phone','Anruf','«Hier ist der IT-Support. Sag mir bitte den Code aus deiner SMS.»',1,'Den Code gibt man niemandem. Der echte Support fragt nie danach.'],
+    ['net','Webseite','Die Seite sieht aus wie deine Bank, aber die Adresse ist bank-login.gratis-geld.top',1,'Immer auf die Adresse schauen. Die echte Bank hat eine andere.'],
+    ['login','Neues Konto','Um Mitternacht wird heimlich ein neues Konto mit allen Rechten erstellt.',1,'Angreifer bauen sich gern eine Hintertür für später.'],
+    ['mail','Neue E-Mail','«Ich bin es, dein Chef. Kauf schnell 10 Geschenkkarten und schick mir die Codes.»',1,'Der Geschenkkarten-Trick. Ein echter Chef fragt so etwas nie.'],
+    ['laptop','Laptop','Der Lüfter dreht voll auf. Ein fremdes Programm rechnet heimlich für jemand anderen.',1,'Solche Programme klauen Strom und Rechenleistung, um Kryptogeld zu schürfen.'],
+    ['net','Webseite','Unsere Webseite bekommt plötzlich eine Million Besuche pro Sekunde.',1,'Jemand will die Seite mit Absicht überlasten, damit sie ausfällt.'],
+    ['phone','Handy','Eine Taschenlampen-App will deine Kontakte, Fotos und dein Mikrofon.',1,'Eine Taschenlampe braucht nur das Licht. Die App will dich ausspionieren.'],
+
+    ['login','Anmeldung','Marco meldet sich um 8 Uhr im Büro in Zürich an. Wie jeden Tag.',0,'Gleicher Ort und gleiche Zeit wie immer. Alles gut.'],
+    ['login','Passwort falsch','Anna tippt ihr Passwort einmal falsch und dann richtig.',0,'Vertippen passiert jedem.'],
+    ['laptop','Update','Der Laptop installiert das neue Sicherheits-Update.',0,'Updates sind gut. Sie schliessen Lücken.'],
+    ['mail','Neue E-Mail','Die Kollegin schickt wie abgemacht die Einladung zum Team-Zmittag.',0,'Eine erwartete Mail von jemandem, den du kennst. Kein Druck, kein komischer Link.'],
+    ['laptop','Drucker','Jemand druckt drei Seiten auf dem Büro-Drucker.',0,'Ganz normaler Büroalltag.'],
+    ['login','Passwort','Ein Mitarbeiter ändert sein Passwort in ein längeres.',0,'Ein besseres Passwort ist vorbildlich.'],
+    ['net','Videocall','Das Team macht einen Videocall. Darum fliessen gerade viele Daten.',0,'Video braucht viele Daten. Das ist zu erwarten.'],
+    ['laptop','Virenschutz','Der Virenschutz macht um 12 Uhr seinen geplanten Scan.',0,'Der Schutz macht einfach seine Arbeit.'],
+    ['login','Anmeldung','Sara meldet sich aus Spanien an. Sie hat vorher gesagt, dass sie dort in den Ferien ist.',0,'Die Reise war angekündigt. Das passt zusammen.'],
+    ['login','Anmeldung','Tim meldet sich an und bestätigt mit dem Code auf seinem Handy.',0,'Genau so soll eine sichere Anmeldung ablaufen.'],
+    ['laptop','Neues Gerät','Die IT richtet einen Laptop für die neue Lernende ein.',0,'Neue Geräte von der IT sind normal.'],
+    ['net','Backup','Das Backup kopiert wie jede Nacht um 2 Uhr die Daten.',0,'Ein geplantes Backup. Es rettet uns im Notfall.'],
+    ['mail','Newsletter','Der Newsletter, den du selbst bestellt hast, kommt wie jede Woche.',0,'Selbst bestellt und vom bekannten Absender.'],
+    ['usb','USB-Stick','Die IT steckt den geprüften Firmen-Stick ein.',0,'Geprüfte Firmen-Sticks sind erlaubt.'],
+    ['net','Webseite','Jemand öffnet die Wetter-Seite, um zu schauen, ob es regnet.',0,'Harmloses Surfen.'],
+    ['phone','Anruf','Der IT-Support ruft zurück, weil du selbst um Hilfe gebeten hast. Er fragt nicht nach dem Passwort.',0,'Du hast selbst angefragt und niemand will dein Passwort.'],
+    ['laptop','Installation','Die IT installiert ein Programm, das vorher genehmigt wurde.',0,'Genehmigte Arbeit der IT.'],
+    ['laptop','Laptop','Ein Laptop sperrt sich nach zehn Minuten ohne Tippen von selbst.',0,'Automatisch sperren schützt vor neugierigen Blicken.'],
+    ['net','WLAN','Ein Besucher verbindet sich mit dem Gäste-WLAN.',0,'Genau dafür ist das Gäste-WLAN da.'],
+    ['mail','E-Mail gemeldet','Eine Mitarbeiterin meldet eine komische Mail ans Sicherheitsteam, ohne zu klicken.',0,'Sie hat alles richtig gemacht. Die Mail schauen wir uns in Ruhe an.'],
+  ];
+  const RANKS = [[0,'Praktikant'],[100,'Junior-Analyst'],[250,'Analyst'],[500,'Senior-Analyst'],[800,'SOC-Chef']];
+  const rankOf = sc => { let r = 0; RANKS.forEach((x, i) => { if (sc >= x[0]) r = i; }); return r; };
+
+  let best = 0;
+  try { best = +localStorage.getItem('alarmzentrale-best') || 0; } catch (e) {}
+
+  let mode = 'menu', score, lives, streak, right, deck, cur, tLeft, tMax, fbAt = 0;
+
+  function show(id){ for (const o of ['menu','pause','over']) $(o).classList.toggle('on', o === id); }
+  function hud(){
+    $('score').textContent = score;
+    const m = mult();
+    $('streak').textContent = streak >= 2 ? 'Serie ' + streak + (m > 1 ? ' · Punkte ×' + m : '') : '';
+    $('rank').textContent = RANKS[rankOf(score)][1];
+    $('lives').innerHTML = [0,1,2].map(i => `<span class="${i < 3 - lives ? 'lost' : ''}">${SHIELD}</span>`).join('');
+  }
+  const mult = () => streak >= 6 ? 3 : streak >= 3 ? 2 : 1;
+  function probe(){ document.body.dataset.state = JSON.stringify({mode, score, lives, streak, attack: cur ? cur[3] : null}); }
+
+  function shuffle(){ deck = ALERTS.map((_, i) => i).sort(() => Math.random() - 0.5); }
+  function start(){ score = 0; lives = 3; streak = 0; right = 0; shuffle(); show(null); next(); }
+  function next(){
+    if (lives <= 0) return gameOver();
+    if (!deck.length) shuffle();
+    cur = ALERTS[deck.pop()];
+    $('icon').innerHTML = ICON[cur[0]]; $('kind').textContent = cur[1]; $('text').textContent = cur[2];
+    $('fb').classList.remove('on'); $('card').className = ''; $('game').classList.remove('fbmode');
+    $('cSafe').classList.remove('pick'); $('cAttack').classList.remove('pick');
+    tMax = Math.max(6, 14 - rankOf(score) * 2); tLeft = tMax;
+    mode = 'play'; hud(); probe();
+  }
+  function answer(choice){
+    const ok = choice !== null && choice === !!cur[3];
+    const before = rankOf(score);
+    let head;
+    if (ok){
+      streak++; right++;
+      score += (10 + Math.round(10 * tLeft / tMax)) * mult();
+      head = 'Richtig!';
+      if (rankOf(score) > before) head += ' Du bist jetzt ' + RANKS[rankOf(score)][1] + '.';
+    } else {
+      streak = 0; lives--;
+      head = choice === null ? 'Zu langsam!' : 'Falsch!';
+    }
+    if (!ok) head += cur[3] ? ' Das war ein Angriff.' : ' Das war harmlos.';
+    $('fbHead').textContent = head; $('fbWhy').textContent = cur[4];
+    $('fb').classList.add('on'); $('card').className = ok ? 'good' : 'bad'; $('game').classList.add('fbmode');
+    mode = 'feedback'; fbAt = performance.now(); hud(); probe();
+  }
+  function gameOver(){
+    mode = 'over';
+    const rec = score > best;
+    if (rec){ best = score; try { localStorage.setItem('alarmzentrale-best', best); } catch (e) {} }
+    $('overTitle').textContent = rec ? 'Neuer Rekord!' : 'Schicht vorbei';
+    $('overScore').textContent = score;
+    $('overSub').textContent = 'Du hast ' + right + (right === 1 ? ' Alarm' : ' Alarme') + ' richtig erkannt und warst am Schluss ' + RANKS[rankOf(score)][1] + '. '
+      + (rec ? 'Das ist dein bestes Spiel.' : 'Dein Rekord liegt bei ' + best + '.');
+    show('over'); probe();
+  }
+  function pause(){ if (mode === 'play'){ mode = 'pause'; show('pause'); probe(); } }
+  function resume(){ mode = 'play'; show(null); last = performance.now(); probe(); }
+
+  addEventListener('keydown', e => {
+    const k = e.key;
+    if ([' ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter'].includes(k)) e.preventDefault();
+    if (e.repeat) return;
+    const go = k === ' ' || k === 'Enter';
+    if (mode === 'play'){
+      if (k === 'ArrowLeft' || k === 'a' || k === 'A'){ $('cSafe').classList.add('pick'); answer(false); }
+      else if (k === 'ArrowRight' || k === 'd' || k === 'D'){ $('cAttack').classList.add('pick'); answer(true); }
+      else if (k === 'p' || k === 'P' || k === 'Escape') pause();
+    } else if (mode === 'feedback'){
+      if (go && performance.now() - fbAt > 350) next();
+    } else if (mode === 'pause'){
+      if (go || k === 'p' || k === 'P' || k === 'Escape') resume();
+    } else if (go) start();
+  });
+  addEventListener('blur', pause);
+
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (mode === 'play'){
+      tLeft -= dt;
+      const f = Math.max(0, tLeft / tMax);
+      $('barFill').style.transform = 'scaleX(' + f + ')';
+      $('barFill').classList.toggle('low', f < 0.3);
+      if (tLeft <= 0) answer(null);
+    }
+    requestAnimationFrame(frame);
+  }
+  score = 0; lives = 3; streak = 0; hud(); probe();
+  $('icon').innerHTML = ICON.mail;
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
